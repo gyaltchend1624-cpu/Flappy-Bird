@@ -1,0 +1,6 @@
+{
+  "name": "Flappy Bird Clone",
+  "description": "An authentic replica of Flappy Bird with physics-based gameplay, procedural obstacles, and high-quality pixel art.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
