@@ -2,15 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trophy, Play, RotateCcw } from 'lucide-react';
 
-const CANVAS_WIDTH = 450;
-const CANVAS_HEIGHT = 700;
-const GRAVITY = 0.28;
-const JUMP_STRENGTH = -5.5;
-const BASE_PIPE_SPEED = 3.2;
-const MAX_PIPE_SPEED = 5.5;
-const BASE_PIPE_GAP = 180;
-const MIN_PIPE_GAP = 135;
-const PIPE_WIDTH = 80;
+const CANVAS_WIDTH = 400;
+const CANVAS_HEIGHT = 600;
+const GRAVITY = 0.25;
+const JUMP_STRENGTH = -5.2;
+const BASE_PIPE_SPEED = 3.0;
+const MAX_PIPE_SPEED = 5.0;
+const BASE_PIPE_GAP = 160;
+const MIN_PIPE_GAP = 130;
+const PIPE_WIDTH = 70;
 const BIRD_RADIUS = 16;
 
 enum GameState {
@@ -41,9 +41,8 @@ export default function App() {
   const frameId = useRef<number>(0);
   const frameCount = useRef(0);
 
-  // Difficulty helpers
-  const getPipeSpeed = () => Math.min(MAX_PIPE_SPEED, BASE_PIPE_SPEED + (scoreRef.current * 0.03));
-  const getPipeGap = () => Math.max(MIN_PIPE_GAP, BASE_PIPE_GAP - (scoreRef.current * 1));
+  const getPipeSpeed = () => Math.min(MAX_PIPE_SPEED, BASE_PIPE_SPEED + (scoreRef.current * 0.02));
+  const getPipeGap = () => Math.max(MIN_PIPE_GAP, BASE_PIPE_GAP - (scoreRef.current * 0.8));
 
   useEffect(() => {
     const savedHighScore = localStorage.getItem('flappy-highscore');
@@ -62,11 +61,8 @@ export default function App() {
   };
 
   const jump = (e?: any) => {
-    if (e) {
-      if (e.type === 'keydown' && e.code !== 'Space') return;
-      // Prevent rapid scroll or ghost clicks
-      if (e.cancelable) e.preventDefault();
-    }
+    if (e && e.type === 'keydown' && e.code !== 'Space') return;
+    if (e && e.cancelable) e.preventDefault();
 
     if (gameStateRef.current === GameState.PLAYING) {
       birdVelocity.current = JUMP_STRENGTH;
@@ -84,16 +80,16 @@ export default function App() {
   const createPipe = (x: number) => {
     const gap = getPipeGap();
     const minHeight = 80;
-    const maxHeight = CANVAS_HEIGHT - gap - minHeight;
+    const maxHeight = CANVAS_HEIGHT - gap - 100 - minHeight;
     const topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
     return { x, topHeight, gap, scored: false };
   };
 
   const checkCollision = (pipe: Pipe) => {
-    const birdRight = 100 + BIRD_RADIUS - 6;
-    const birdLeft = 100 - BIRD_RADIUS + 6;
-    const birdTop = birdY.current - BIRD_RADIUS + 6;
-    const birdBottom = birdY.current + BIRD_RADIUS - 6;
+    const birdRight = 100 + BIRD_RADIUS - 4;
+    const birdLeft = 100 - BIRD_RADIUS + 4;
+    const birdTop = birdY.current - BIRD_RADIUS + 4;
+    const birdBottom = birdY.current + BIRD_RADIUS - 4;
 
     if (birdRight > pipe.x && birdLeft < pipe.x + PIPE_WIDTH) {
       if (birdTop < pipe.topHeight || birdBottom > pipe.topHeight + pipe.gap) {
@@ -101,7 +97,7 @@ export default function App() {
       }
     }
 
-    if (birdBottom > CANVAS_HEIGHT || birdTop < 0) {
+    if (birdBottom > CANVAS_HEIGHT - 100 || birdTop < 0) {
       return true;
     }
 
@@ -112,53 +108,105 @@ export default function App() {
     ctx.save();
     ctx.translate(100, birdY.current);
     
+    // Rotation based on velocity
     const rotation = Math.min(Math.max(birdVelocity.current * 0.1, -0.4), 0.8);
     ctx.rotate(rotation);
 
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = '#fbbf24';
-
-    ctx.fillStyle = '#fbbf24';
+    // Body (Yellow)
+    ctx.fillStyle = '#facc15';
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#000';
     ctx.beginPath();
-    ctx.arc(0, 0, BIRD_RADIUS, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, BIRD_RADIUS + 2, BIRD_RADIUS - 2, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.stroke();
 
-    ctx.shadowBlur = 0;
+    // Belly (White/Lighter Yellow)
+    ctx.fillStyle = '#fff';
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath();
+    ctx.ellipse(-2, 4, 10, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Wing (White)
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(-8, 2, 10, 6, -Math.PI / 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Eyes (Big White circle)
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(8, -6, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Pupil
     ctx.fillStyle = '#000';
     ctx.beginPath();
-    ctx.arc(8, -4, 4, 0, Math.PI * 2);
+    ctx.arc(11, -6, 2, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#fff';
-    ctx.globalAlpha = 0.5;
+    // Beak (Red/Orange)
+    ctx.fillStyle = '#ef4444';
     ctx.beginPath();
-    ctx.ellipse(-10, 0, 12, 6, Math.PI / 4, 0, Math.PI * 2);
+    ctx.moveTo(12, 0);
+    ctx.lineTo(24, 2);
+    ctx.lineTo(26, 6);
+    ctx.lineTo(12, 10);
+    ctx.closePath();
     ctx.fill();
+    ctx.stroke();
 
     ctx.restore();
   };
 
+  const drawClassicPipe = (ctx: CanvasRenderingContext2D, x: number, y: number, height: number, isTop: boolean) => {
+    const pipeColor = '#73BF2E';
+    const darkColor = '#55811d';
+    const lightColor = '#94e044';
+    const borderColor = '#000';
+
+    ctx.fillStyle = pipeColor;
+    ctx.fillRect(x, y, PIPE_WIDTH, height);
+    
+    // Vertical texture lines
+    ctx.fillStyle = lightColor;
+    ctx.fillRect(x + 5, y, 4, height);
+    ctx.fillStyle = darkColor;
+    ctx.fillRect(x + PIPE_WIDTH - 15, y, 8, height);
+    
+    // Borders
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, PIPE_WIDTH, height);
+
+    // Caps
+    const capHeight = 35;
+    const capX = x - 5;
+    const capW = PIPE_WIDTH + 10;
+    const capY = isTop ? y + height - capHeight : y;
+
+    ctx.fillStyle = pipeColor;
+    ctx.fillRect(capX, capY, capW, capHeight);
+    
+    // Cap vertical lines
+    ctx.fillStyle = lightColor;
+    ctx.fillRect(capX + 5, capY, 5, capHeight);
+    ctx.fillStyle = darkColor;
+    ctx.fillRect(capX + capW - 15, capY, 10, capHeight);
+
+    ctx.strokeRect(capX, capY, capW, capHeight);
+  };
+
   const drawPipe = (ctx: CanvasRenderingContext2D, pipe: Pipe) => {
-    ctx.save();
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = 'rgba(16, 185, 129, 0.2)';
-
-    const gradient = ctx.createLinearGradient(pipe.x, 0, pipe.x + PIPE_WIDTH, 0);
-    gradient.addColorStop(0, '#064e3b');
-    gradient.addColorStop(0.5, '#10b981');
-    gradient.addColorStop(1, '#065f46');
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(pipe.x, 0, PIPE_WIDTH, pipe.topHeight);
-    
+    // Top pipe
+    drawClassicPipe(ctx, pipe.x, 0, pipe.topHeight, true);
+    // Bottom pipe
     const bottomY = pipe.topHeight + pipe.gap;
-    ctx.fillRect(pipe.x, bottomY, PIPE_WIDTH, CANVAS_HEIGHT - bottomY);
-
-    ctx.strokeStyle = '#ffffff11';
-    ctx.strokeRect(pipe.x, 0, PIPE_WIDTH, pipe.topHeight);
-    ctx.strokeRect(pipe.x, bottomY, PIPE_WIDTH, CANVAS_HEIGHT - bottomY);
-
-    ctx.restore();
+    drawClassicPipe(ctx, pipe.x, bottomY, CANVAS_HEIGHT - 100 - bottomY, false);
   };
 
   const update = () => {
@@ -168,8 +216,7 @@ export default function App() {
     birdY.current += birdVelocity.current;
 
     frameCount.current++;
-    // Spawn pipes faster as speed increases to maintain density
-    const spawnFreq = Math.max(65, 90 - (scoreRef.current * 1));
+    const spawnFreq = Math.max(60, 85 - (scoreRef.current * 0.5));
     if (frameCount.current % Math.floor(spawnFreq) === 0) {
       pipes.current.push(createPipe(CANVAS_WIDTH));
     }
@@ -195,7 +242,53 @@ export default function App() {
       }
     });
 
-    pipes.current = pipes.current.filter((pipe) => pipe.x + PIPE_WIDTH > -20);
+    pipes.current = pipes.current.filter((pipe) => pipe.x + PIPE_WIDTH > -50);
+  };
+
+  const drawEnvironment = (ctx: CanvasRenderingContext2D) => {
+    // Sky
+    ctx.fillStyle = '#70C5CE';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // City / Background (Static-ish)
+    const groundY = CANVAS_HEIGHT - 100;
+
+    // Clouds & City Silhouette
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    for(let i = 0; i < 4; i++) {
+        // Simple cloud/city mix
+        ctx.beginPath();
+        ctx.arc(i * 120 + 40, groundY - 20, 40, 0, Math.PI * 2);
+        ctx.arc(i * 120 + 80, groundY - 30, 50, 0, Math.PI * 2);
+        ctx.arc(i * 120 + 120, groundY - 20, 40, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // City Buildings (Greenish Grey)
+    ctx.fillStyle = '#bbedba';
+    for(let i = 0; i < 8; i++) {
+        const x = i * 60;
+        ctx.fillRect(x, groundY - 50, 40, 50);
+        ctx.strokeRect(x, groundY - 50, 40, 50);
+    }
+
+    // Ground
+    ctx.fillStyle = '#ded895'; // Classic yellowish ground
+    ctx.fillRect(0, groundY, CANVAS_WIDTH, 100);
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(CANVAS_WIDTH, groundY);
+    ctx.stroke();
+
+    // Ground scrolling pattern
+    ctx.fillStyle = '#73BF2E';
+    for(let i = 0; i < 20; i++) {
+        const x = (i * 30 - frameCount.current * BASE_PIPE_SPEED) % CANVAS_WIDTH;
+        const finalX = x < 0 ? CANVAS_WIDTH + x : x;
+        ctx.fillRect(finalX, groundY, 15, 10);
+    }
   };
 
   const draw = () => {
@@ -205,23 +298,7 @@ export default function App() {
     if (!ctx) return;
 
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    const bgGradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
-    bgGradient.addColorStop(0, '#0f172a');
-    bgGradient.addColorStop(0.5, '#1e1b4b');
-    bgGradient.addColorStop(1, '#312e81');
-    ctx.fillStyle = bgGradient;
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    const particleSpeed = getPipeSpeed() * 0.15;
-    for(let i = 0; i < 40; i++) {
-        const x = (i * 77 - (frameCount.current * particleSpeed)) % CANVAS_WIDTH;
-        const normalizedX = x < 0 ? CANVAS_WIDTH + x : x;
-        const y = (i * 99) % CANVAS_HEIGHT;
-        ctx.fillRect(normalizedX, y, 1.5, 1.5);
-    }
-
+    drawEnvironment(ctx);
     pipes.current.forEach(pipe => drawPipe(ctx, pipe));
     drawBird(ctx);
 
@@ -235,33 +312,27 @@ export default function App() {
   }, [highScore]);
 
   return (
-    <div className="min-h-screen bg-[#020617] flex items-center justify-center font-sans overflow-hidden">
+    <div className="min-h-screen bg-[#4ec0ca] flex items-center justify-center font-sans overflow-hidden">
       <div 
         ref={containerRef}
         onPointerDown={(e) => jump(e)}
-        className="relative shadow-[0_0_120px_rgba(30,27,75,0.6)] rounded-[40px] overflow-hidden border border-white/10 select-none touch-none" 
+        className="relative shadow-[0_30px_60px_rgba(0,0,0,0.5)] rounded-[10px] overflow-hidden border-[8px] border-[#000] select-none touch-none" 
         id="game-container"
       >
         <canvas
           ref={canvasRef}
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
-          className="bg-black block"
+          className="bg-[#70C5CE] block"
           id="flappy-canvas"
         />
 
         {/* HUD Score */}
         {gameState === GameState.PLAYING && (
           <div className="absolute top-12 left-0 right-0 flex justify-center pointer-events-none">
-            <motion.div 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white/10 backdrop-blur-md border border-white/20 px-8 py-3 rounded-2xl shadow-2xl"
-            >
-              <span className="text-5xl font-[900] text-white drop-shadow-[0_4px_10px_rgba(255,255,255,0.3)]">
-                {score}
-              </span>
-            </motion.div>
+            <span className="text-6xl font-black text-white stroke-black drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]" style={{ WebkitTextStroke: '2px black' }}>
+              {score}
+            </span>
           </div>
         )}
 
@@ -271,34 +342,30 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-[10px] flex flex-col items-center justify-center text-white z-20"
+              className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center text-white z-20"
             >
               <div className="relative mb-12 text-center">
-                <h1 className="text-7xl font-[900] italic uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-gray-500">
-                  FLAPPY
-                </h1>
-                <h1 className="text-7xl font-[900] italic uppercase tracking-tighter text-[#fbbf24] -mt-4 drop-shadow-[0_0_30px_rgba(251,191,36,0.5)]">
-                  NEON
+                <h1 className="text-6xl font-black italic uppercase tracking-tighter text-yellow-400 drop-shadow-[0_4px_0_rgba(0,0,0,1)]" style={{ WebkitTextStroke: '2px black' }}>
+                  FLAPPY<br/>BIRD
                 </h1>
               </div>
               
-              <p className="text-white/60 text-sm tracking-[0.4em] uppercase font-light animate-pulse mb-12">
-                Space or Click to Launch
-              </p>
-
-              <div className="flex gap-4">
-                <div className="bg-white/10 p-5 rounded-2xl border border-white/20 flex flex-col items-center w-28">
-                  <div className="text-[10px] text-white/40 mb-1 uppercase tracking-widest font-bold">Best</div>
-                  <div className="text-xl font-black text-white">{highScore}</div>
+              <div className="bg-white/90 p-8 rounded-2xl border-4 border-black text-black text-center shadow-xl mb-8 max-w-[280px]">
+                <p className="text-sm font-bold tracking-widest uppercase mb-4">How to Play</p>
+                <p className="text-xs font-medium mb-6 leading-relaxed">TAP THE SCREEN OR PRESS SPACE TO FLAP YOUR WINGS</p>
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 bg-yellow-400 rounded-full border-4 border-black animate-bounce flex items-center justify-center">
+                        <div className="w-4 h-4 bg-white rounded-full border-2 border-black" />
+                    </div>
                 </div>
-                <button
-                  onClick={initGame}
-                  className="bg-white text-black px-10 py-4 rounded-2xl flex items-center gap-2 font-[900] text-lg hover:scale-105 active:scale-95 transition-all uppercase tracking-widest"
-                >
-                  <Play size={20} className="fill-current" />
-                  Play
-                </button>
               </div>
+
+              <button
+                onClick={initGame}
+                className="bg-green-500 hover:bg-green-600 border-b-8 border-green-700 active:border-b-0 active:translate-y-2 transition-all px-12 py-5 rounded-xl font-black text-2xl uppercase tracking-widest shadow-2xl"
+              >
+                PLAY
+              </button>
             </motion.div>
           )}
 
@@ -306,34 +373,29 @@ export default function App() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="absolute inset-0 bg-red-950/60 backdrop-blur-[12px] flex flex-col items-center justify-center text-white z-30"
+              className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white z-30"
             >
-              <h2 className="text-6xl font-[900] italic text-white mb-6 uppercase drop-shadow-2xl tracking-tighter">
-                CRASHED
+              <h2 className="text-6xl font-black italic text-red-500 mb-8 uppercase drop-shadow-[0_4px_0_rgba(0,0,0,1)]" style={{ WebkitTextStroke: '2px black' }}>
+                CRASHED!
               </h2>
               
-              <div className="bg-white/10 backdrop-blur-md border border-white/10 p-10 rounded-[40px] text-center w-80 shadow-2xl">
-                <p className="text-white/40 text-xs uppercase tracking-[0.3em] mb-2 font-bold">Final Score</p>
-                <div className="text-8xl font-[900] text-white leading-none mb-8 drop-shadow-[0_4px_20px_rgba(255,255,255,0.2)]">
+              <div className="bg-[#ded895] border-4 border-black p-8 rounded-2xl text-center w-72 shadow-[0_10px_0_rgba(0,0,0,0.2)]">
+                <p className="text-black/60 text-[10px] uppercase tracking-widest mb-1 font-black">Score</p>
+                <div className="text-6xl font-black text-white drop-shadow-[0_4px_0_rgba(0,0,0,1)] mb-6" style={{ WebkitTextStroke: '2px black' }}>
                   {score}
                 </div>
                 
-                <div className="h-px w-full bg-white/10 mb-8"></div>
-
-                <div className="flex flex-col gap-3">
-                  <div className="flex justify-between items-center px-2 mb-4">
-                    <span className="text-xs uppercase tracking-widest text-white/40 font-bold">High Score</span>
-                    <span className="text-xl font-[900] text-yellow-400">{highScore}</span>
-                  </div>
-
-                  <button
-                    onClick={initGame}
-                    className="w-full py-5 bg-white text-black font-[900] text-xl rounded-2xl hover:scale-105 active:scale-95 transition-all uppercase tracking-widest shadow-xl flex items-center justify-center gap-3"
-                  >
-                    <RotateCcw size={22} strokeWidth={3} />
-                    Try Again
-                  </button>
+                <div className="flex justify-between items-center bg-black/10 px-4 py-2 rounded-lg mb-6">
+                  <span className="text-[10px] uppercase tracking-widest text-black font-black">Best</span>
+                  <span className="text-xl font-black text-yellow-600">{highScore}</span>
                 </div>
+
+                <button
+                  onClick={initGame}
+                  className="w-full py-4 bg-[#73BF2E] hover:bg-[#5a9c21] border-b-6 border-[#4a8a1a] active:border-b-0 active:translate-y-1 transition-all rounded-xl font-black text-xl uppercase tracking-widest text-white shadow-lg"
+                >
+                  OK
+                </button>
               </div>
             </motion.div>
           )}
